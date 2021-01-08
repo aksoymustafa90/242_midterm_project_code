@@ -1,0 +1,193 @@
+#include "defines.h"
+#include "stm32f4xx.h"
+#include "tm_stm32f4_hd44780.h"
+#include "time.h"
+/* RS - Register select pin */
+#define HD44780_RS_PORT            GPIOB
+#define HD44780_RS_PIN            GPIO_Pin_2
+/* E - Enable pin */
+#define HD44780_E_PORT            GPIOB
+#define HD44780_E_PIN                GPIO_Pin_7
+ 
+/* D4 - Data 4 pin */
+#define HD44780_D4_PORT            GPIOC
+#define HD44780_D4_PIN            GPIO_Pin_12
+/* D5 - Data 5 pin */
+#define HD44780_D5_PORT            GPIOC
+#define HD44780_D5_PIN            GPIO_Pin_13
+/* D6 - Data 6 pin */
+#define HD44780_D6_PORT            GPIOB
+#define HD44780_D6_PIN            GPIO_Pin_12
+/* D7 - Data 7 pin */
+#define HD44780_D7_PORT            GPIOB
+#define HD44780_D7_PIN            GPIO_Pin_13
+
+void SystemInit()
+{
+	(*((int*)0xE000ED88))|=0x0F00000;  								// Floating Point activation.
+	
+	RCC->AHB1ENR |= 0x0000000F;        								// All Pin D,C,B & A  clock signal activated.
+	GPIOB->MODER = 0x05004004;         								// Pin 2,7,12,13 are set as output for Port B            10 10 10 10 10 10 10 10 
+	GPIOC->MODER = 0x05000000;                        // Pin 12 and 13 are set as output for Port C
+	GPIOD->MODER = 0x00000001; 												// Pin 0 of D port
+	GPIOA->OSPEEDR= 0xFFFFFFFF;        								// GPIOA all I/O pins are set to maximum speed. 
+	GPIOB->OSPEEDR= 0xFFFFFFFF;        								// GPIOB all I/O pins are set to maximum	speed.
+	GPIOB->OSPEEDR= 0xFFFFFFFF;                       // GPIOC all I/O pins are set to maximum	speed.
+	GPIOA->PUPDR = 0x00000000;												// Push pull and drain registers set as no pull up or pull down.
+} 
+void delay(int number_of_seconds) 
+{ 
+    // Converting time into milli_seconds 
+    int milli_seconds = 1000 * number_of_seconds; 
+  
+    // Storing start time 
+    clock_t start_time = clock(); 
+  
+    // looping till required time is not achieved 
+    while (clock() < start_time + milli_seconds) 
+        ; 
+} 
+
+
+
+int main()
+{
+	
+	int second = 0, minute = 0, hour = 0, ahour = 0, amin = 0;
+	
+	//Initialize system
+    SystemInit();
+    
+    //Initialize LCD 16 cols x 2 rows
+    TM_HD44780_Init(16, 2);
+    
+    //Save custom character on location 0 in LCD
+    TM_HD44780_CreateChar(0, &customChar[0]);
+    
+    
+    
+	
+	
+	
+	while(1){																					//Our code will continue as long as there is power.
+		if(second == 60)
+		{
+				minute++;
+				second = 0;
+		}
+		if(minute == 60)
+		{
+				hour++;
+				minute = 0;
+		}
+		if(hour == 24)
+		{
+				hour = 0;
+		}
+		delay(1);
+		second++;
+		
+		
+		if((GPIOA->IDR & 0X00000001)!= 0)   //Setting Alarm
+		{
+			while(1)    //Clock continues on while we are setting the alarm
+			{
+					
+				if(second == 60)
+			{
+					minute++;
+					second = 0;
+			}
+			if(minute == 60)
+			{
+					hour++;
+					minute = 0;
+			}
+			if(hour == 24)
+			{
+					hour = 0;
+			}
+			delay(1);
+			second++;
+				if((GPIOA->IDR & 0x00000002)!= 0)
+					{
+							amin++;
+						if(amin == 60)
+							amin = 0;
+					}
+					if((GPIOA->IDR & 0x00000004)!=0)
+					{
+						ahour++;
+						if(ahour == 24)
+							ahour = 0;
+					}
+					if(hour == ahour && minute == amin && second == 0)    //Alarm sets on
+							GPIOD->ODR = 0x00000001;
+					if((GPIOA->IDR & 0x00000002)!= 0)   //Alarm is closed with button
+							GPIOD->ODR = 0x00000000;
+					if(hour < 10 && minute < 10)				//Printing on the time on lcd inside the loop
+							TM_HD44780_Puts(0, 0, "0%d:0%d", hour, minute);
+					if(hour > 9 && minute < 10)
+							TM_HD44780_Puts(0, 0, "%d:0%d", hour, minute);
+					if(hour < 10 && minute > 10)
+							TM_HD44780_Puts(0, 0, "0%d:%d", hour, minute);
+					if(hour > 10 && minute > 10)
+							TM_HD44780_Puts(0, 0, "%d:%d", hour, minute);
+					
+					if(ahour < 10 && amin < 10)											//Printing the alarm on lcd
+						TM_HD44780_Puts(2, 1, "0%d:0%d", ahour, amin);
+					if(ahour > 9 && amin < 10)
+						TM_HD44780_Puts(2, 1, "%d:0%d", ahour, amin);
+					if(ahour < 10 && amin > 10)
+						TM_HD44780_Puts(2, 1, "0%d:%d", ahour, amin);
+					if(ahour > 10 && amin > 10)
+						TM_HD44780_Puts(2, 1, "%d:%d", ahour, amin);
+					
+					if((GPIOA->IDR & 0x00000008)!=0)	//Ending the loop
+						break;
+					
+						
+			}
+		
+		}
+		if((GPIOA->IDR & 0X00000010)!= 0)   //Setting the time
+																				//We don't need the counting loop, because we are setting timedd
+		{
+				
+				if((GPIOA->IDR & 0x00000002)!= 0)   
+					{
+							minute++;
+						if(minute == 60)
+							minute = 0;
+					}
+				if((GPIOA->IDR & 0x00000004)!=0)
+					{
+						hour++;
+				if(hour == 24)
+							hour = 0;
+					}
+	
+				if((GPIOA->IDR & 0x00000008)!=0) //Ending the loop
+						break;
+						
+			}
+		
+		}
+		if(hour < 10 && minute < 10)
+			TM_HD44780_Puts(0, 0, "0%d:0%d", hour, minute);
+		if(hour > 9 && minute < 10)
+			TM_HD44780_Puts(0, 0, "%d:0%d", hour, minute);
+		if(hour < 10 && minute > 10)
+			TM_HD44780_Puts(0, 0, "0%d:%d", hour, minute);
+		if(hour > 10 && minute > 10)
+			TM_HD44780_Puts(0, 0, "%d:%d", hour, minute);
+				
+		if(hour == ahour && minute == amin && second == 0)
+			GPIOD->ODR = 0x00000001;
+		if((GPIOA->IDR & 0x00000002)!= 0)
+			GPIOD->ODR = 0x00000000;
+		
+		
+} 
+
+}
