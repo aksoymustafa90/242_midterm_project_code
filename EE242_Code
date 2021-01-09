@@ -27,7 +27,7 @@ void SystemInit()
 	(*((int*)0xE000ED88))|=0x0F00000;  								// Floating Point activation.
 	
 	RCC->AHB1ENR |= 0x0000000F;        								// All Pin D,C,B & A  clock signal activated.
-	GPIOB->MODER = 0x05004004;         								// Pin 2,7,12,13 are set as output for Port B            10 10 10 10 10 10 10 10 
+	GPIOB->MODER = 0x05004004;         								// Pin 2,7,12,13 are set as output for Port B           
 	GPIOC->MODER = 0x05000000;                        // Pin 12 and 13 are set as output for Port C
 	GPIOD->MODER = 0x00000001; 												// Pin 0 of D port
 	GPIOA->OSPEEDR= 0xFFFFFFFF;        								// GPIOA all I/O pins are set to maximum speed. 
